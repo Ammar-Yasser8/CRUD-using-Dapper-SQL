@@ -17,6 +17,7 @@ namespace EmployeeApi.Controllers
             _connection = connection;
         }
         
+
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Employee>>> GetEmployees()
         {
@@ -74,6 +75,37 @@ namespace EmployeeApi.Controllers
             if (rowsAffected == 0)
                 return NotFound();
             return NoContent();
+        }
+
+        // Get Min and Max Salary (Execute multiple queries in one go)
+        [HttpGet("salary-range")]
+        public async Task<ActionResult> GetSalaryRange()
+        {
+            var sql = "SELECT MIN(Salary) AS MinSalary, MAX(Salary) AS MaxSalary FROM Employees";
+            var result = await _connection.QueryFirstOrDefaultAsync(sql);
+            return Ok(result);
+        }
+
+        // Transaction in Dapper
+        // (Take 2000 from employee with Id 1 and add it to employee with Id 2)
+        [HttpPost("transfer")]
+        public async Task<ActionResult> TransferSalary(int fromEmployeeId, int toEmployeeId, decimal amount)
+        {
+            using var transaction = _connection.BeginTransaction();
+            try
+            {
+                var deductSql = "UPDATE Employees SET Salary = Salary - @Amount WHERE Id = @Id";
+                var addSql = "UPDATE Employees SET Salary = Salary + @Amount WHERE Id = @Id";
+                await _connection.ExecuteAsync(deductSql, new { Amount = amount, Id = fromEmployeeId }, transaction);
+                await _connection.ExecuteAsync(addSql, new { Amount = amount, Id = toEmployeeId }, transaction);
+                transaction.Commit();
+                return Ok("Transfer successful");
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                return BadRequest($"Transfer failed: {ex.Message}");
+            }
         }
     }
 }
