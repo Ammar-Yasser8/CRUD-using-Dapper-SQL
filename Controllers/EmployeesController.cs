@@ -17,6 +17,7 @@ namespace EmployeeApi.Controllers
             _connection = connection;
         }
         
+
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Employee>>> GetEmployees()
         {
@@ -74,6 +75,15 @@ namespace EmployeeApi.Controllers
             if (rowsAffected == 0)
                 return NotFound();
             return NoContent();
+        }
+
+        // Get Min and Max Salary (Execute multiple queries in one go)
+        [HttpGet("salary-range")]
+        public async Task<ActionResult> GetSalaryRange()
+        {
+            var sql = "SELECT MIN(Salary) AS MinSalary, MAX(Salary) AS MaxSalary FROM Employees";
+            var result = await _connection.QueryFirstOrDefaultAsync(sql);
+            return Ok(result);
         }
     }
 }
